@@ -21,7 +21,7 @@ namespace InvestingCalendarParserConsole
         static int addHourAfterEvent = 0; // кол-во часов после события
 
         // задержка между обращениями к серверу, миллисекунд
-        static int connDelay = 100; 
+        static int connDelay = 50; 
 
         static void Main(string[] args)
         {
@@ -78,12 +78,14 @@ namespace InvestingCalendarParserConsole
             // проверяем первую строку - если заголовки, то добавляем заголовки в новый список            
             int beginFromString = 0;
 
-            List<string> stringValue = inData[0].Split(';').ToList();
+            //List<string> stringValue = inData[0].Split(';').ToList();
+            List<string> outStrings = inData[0].Split(';').ToList();
+            string eventsString = "";
 
-            if (!DateTime.TryParse(stringValue[0], out dateValue))
+            if (!DateTime.TryParse(outStrings[0], out dateValue))
             {   // заголовок
-                stringValue.Add("Events");
-                outData.Add(String.Join(";", stringValue));
+                outStrings.Add("Events");
+                outData.Add(String.Join(";", outStrings));
                 Console.WriteLine("добавляем в заголовки колонку Events");
                 
                 //т.к. 0 строка - заголовок, начинаем со второй
@@ -93,12 +95,12 @@ namespace InvestingCalendarParserConsole
             // parsing data
             for (int i = beginFromString; i < inData.Count; i++)
             {
-                stringValue = inData[i].Split(';').ToList();
+                outStrings = inData[i].Split(';').ToList();
                 
                 // час, для которого (+- час) ищем события
                 int searchHour = 0;
 
-                if (DateTime.TryParse(stringValue[0], out dateValue))
+                if (DateTime.TryParse(outStrings[0], out dateValue))
                 {   // ищем события на дату dateValue
 
                     // будем брать события searchHourHour +- час
@@ -107,7 +109,6 @@ namespace InvestingCalendarParserConsole
                     string receivedPage = null;
                     while (receivedPage == null)
                     {
-                        Console.WriteLine("Try ro get data...");
                         // получение данных календаря
                         try
                         {
@@ -123,31 +124,42 @@ namespace InvestingCalendarParserConsole
 
                     if (calendarEvents.Count == 0)
                     {   // если событий нет
-                        stringValue.Add("Error loading events on this date!");
+                        eventsString = "Error loading events on this date!";
                         Console.WriteLine("Error loading events on this date!");
-                        continue;
+                        //continue;
+                    }
+                    else
+                    {
+                        eventsString = "\"";
+                        eventsString += CollectedData.GetHeaders() + "\r\n";
+                        //stringValue[stringValue.Count - 1] += 
+                        foreach (var evnt in calendarEvents)
+                        {
+                            eventsString += evnt.ToString().Replace('"', '_').Replace(';', ' ') + "\r\n";
+                        }
+                        eventsString += "\"";
                     }
 
-                    var eventsString = "\"" + CollectedData.GetHeaders() + "\r\n";
-                    //stringValue[stringValue.Count - 1] += 
-                    foreach (var evnt in calendarEvents)
-                    {
-                        eventsString += evnt.ToString() + "\r\n";
-                    }
-                    eventsString += "\"";
-                    stringValue.Add(eventsString);
                 }
                 else
                 {
-                    stringValue.Add("Error loading events on this date!");
+                    eventsString = "Error loading events on this date!";
                     Console.WriteLine("Error loading events on this date!");
+                    //continue;
                 }
 
-                outData.Add(String.Join(";", stringValue));
+                outStrings.Add(eventsString);
+                outData.Add(String.Join(";", outStrings));
 
                 Console.WriteLine("Added column: " + outData[outData.Count-1].ToString());
                 Thread.Sleep(connDelay);
             }
+
+            //добавление ститистики по событиям в конец списка
+            foreach (KeyValuePair<string, int> entry in parser.Statistic)
+            {
+                outData.Add(entry.Key + "\t" + entry.Value + "\r\n");
+            }            
         }
 
         /// <summary>

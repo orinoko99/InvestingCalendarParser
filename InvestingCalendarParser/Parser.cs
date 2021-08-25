@@ -27,6 +27,12 @@ namespace InvestingCalendarParser
         List<CollectedData> events;
 
         /// <summary>
+        /// сбор статистики
+        /// "имя-аннотация" события, кол-во раз, которое встречается
+        /// </summary>
+        public Dictionary<string, int> Statistic;
+
+        /// <summary>
         /// адрес календаря для запроса post
         /// </summary>
         string urlPost;
@@ -46,11 +52,6 @@ namespace InvestingCalendarParser
         /// </summary>
         HttpClient client;
 
-        /// <summary>
-        /// для ошибок
-        /// </summary>
-        public string Error { get; set; }
-
         public Parser()
         {            
             urlPost = "https://ru.investing.com/economic-calendar/Service/getCalendarFilteredData";
@@ -63,6 +64,8 @@ namespace InvestingCalendarParser
             client.DefaultRequestHeaders.Add("Accept-Charset", "UTF-8");
             client.DefaultRequestHeaders.Add("Accept-Language", "ru-RU, ru;q=0.9, en-US;q=0.8, en;q=0.7, fr;q=0.6");
             client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
+
+            Statistic = new Dictionary<string, int>();
         }
 
         public List<CollectedData> Parse(DateTime date, string receivedPage, int searchHour, int addHourBeforeEvent, int addHourAfterEvent)
@@ -130,7 +133,7 @@ namespace InvestingCalendarParser
                     // и время +- час от искомого searchHour - парсим его
                     if (eventDate.Year != 1 && eventDate.Hour >= startHour && eventDate.Hour <= endHour)
                     {
-                        Console.WriteLine($"Время события {eventDate} укладывается в диапазон часов {startHour} - {endHour} (искомый час: {searchHour})");
+                        //Console.WriteLine($"Время события {eventDate} укладывается в диапазон часов {startHour} - {endHour} (искомый час: {searchHour})");
 
                         for (int i = 1; i < rows.Length; i++)
                         {
@@ -159,7 +162,9 @@ namespace InvestingCalendarParser
                                 try
                                 {
                                     evnt.AnnotationHref = rows[i].QuerySelector("a").GetAttribute("href");
-                                    evnt.Annotation = rows[i].QuerySelector("a").TextContent;
+                                    evnt.Annotation = rows[i].QuerySelector("a").TextContent.Trim();
+
+                                    AddStatistic(evnt.Annotation);
                                 }
                                 catch
                                 {
@@ -205,7 +210,7 @@ namespace InvestingCalendarParser
                     }
                     else
                     {
-                        Console.WriteLine($"Время события {eventDate} НЕ укладывается в диапазон часов {startHour} - {endHour} (искомый час: {searchHour})");
+                        //Console.WriteLine($"Время события {eventDate} НЕ укладывается в диапазон часов {startHour} - {endHour} (искомый час: {searchHour})");
                         continue;
                     }
                 }
@@ -213,6 +218,21 @@ namespace InvestingCalendarParser
             }
 
             return collectedData;
+        }
+
+        private void AddStatistic(string annotation)
+        {
+            //var elem = Statistic.First(e => e.Key.Equals(annotation));
+
+            if (Statistic.ContainsKey(annotation))
+            {
+                Statistic[annotation]++; 
+            }
+            else
+            {
+                Statistic[annotation] = 1;
+            }
+
         }
 
         public async Task<string> GetPage(DateTime _date)
